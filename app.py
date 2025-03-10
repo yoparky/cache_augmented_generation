@@ -27,7 +27,7 @@ def open_knowledge_base(path_to_file: str):
     with open(path_to_file, "r", encoding="utf-8") as file:
         return file.read()
 
-def combine_knowledge_base_and_prompt(knowledge_base: str):
+def combine_knowledge_base_and_prompt(knowledge_base: str) -> str:
     # combine the knowledge base and the prompt
     # return a string of the combined prompt
     prompt = """
@@ -59,19 +59,13 @@ def produce_kv_cache(model, tokenizer, combined_prompt) -> DynamicCache, int:
     # Return populated cache and the original sequence length
     return outputs.past_key_values, input_length
 
-
-
-
-
-
     # A seperate model call is made to produce the cache
     # An in-scope cache is initialized, passed to the model call, and returned as output
-    pass
 
-def reset_kv_cache() -> DynamicCache:
+def reset_kv_cache(kv_cache: DynmaicCache, input_length: int):
     # Reset the kv cache leaving the processed part intact
     # use DynamicCache.crop(max_length)
-    pass
+    kv_cache.crop(input_length)
 
 def generate():
     # customized decoder model call using the generated DynamicCache passed in as
