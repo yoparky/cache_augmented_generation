@@ -69,7 +69,7 @@ def reset_kv_cache(kv_cache: DynamicCache, input_length: int):
     # use DynamicCache.crop(max_length)
     kv_cache.crop(input_length)
 
-def generate(model, tokenizer, user_prompt: str, cache: DynamicCache, max_new_tokens: int = 300) -> str:
+def generate(model, tokenizer, user_prompt: str, knowledge_base_kv_cache: DynamicCache, max_new_tokens: int = 300) -> str:
     # Tokenize the user prompt
     input_ids = tokenizer(user_prompt, return_tensors="pt").to(model.device).input_ids
     original_input_length = input_ids.shape[1]
@@ -84,7 +84,7 @@ def generate(model, tokenizer, user_prompt: str, cache: DynamicCache, max_new_to
             # Process the next token(s)
             outputs = model(
                 input_ids=next_token_input,
-                past_key_values=cache,
+                past_key_values=knowledge_base_kv_cache,
                 use_cache=True
             )
             
@@ -93,7 +93,7 @@ def generate(model, tokenizer, user_prompt: str, cache: DynamicCache, max_new_to
             next_token = next_token_logits.argmax(dim=-1).unsqueeze(-1)
             
             # Update cache for next iteration
-            cache = outputs.past_key_values
+            knowledge_base_kv_cache = outputs.past_key_values
             
             # Append new token to output
             output_ids = torch.cat([output_ids, next_token], dim=1)
