@@ -26,8 +26,13 @@ def load_model():
 def open_knowledge_base(path_to_file: str):
     # open the knowledge base
     # return a string of the knowledge base
-    with open(path_to_file, "r", encoding="utf-8") as file:
-        return file.read()
+    try:
+        with open(path_to_file, "r", encoding="utf-8") as file:
+            return file.read()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Knowledge base file not found at {path_to_file}")
+    except Exception as e:
+        raise Exception(f"Error reading knowledge base: {str(e)}")
 
 def combine_knowledge_base_and_prompt(knowledge_base: str) -> str:
     # combine the knowledge base and the prompt
@@ -132,7 +137,7 @@ def main():
     
     # Produce initial KV cache
     print("Processing knowledge base...")
-    knowledge_cache, knowledge_length = produce_kv_cache(model, tokenizer, knowledge_prompt)
+    knowledge_base_kv_cache, knowledge_base_input_length = produce_kv_cache(model, tokenizer, knowledge_prompt)
     print("Knowledge base processed and cached.")
     
     # Chat loop
@@ -144,11 +149,11 @@ def main():
         
         # Generate response with knowledge cache
         print("\nAssistant: ", end="")
-        response = generate(model, tokenizer, user_input, knowledge_cache)
+        response = generate(model, tokenizer, user_input, knowledge_base_kv_cache)
         print(response)
         
         # Reset cache for next question
-        knowledge_cache = reset_kv_cache(knowledge_cache, knowledge_length)
+        knowledge_base_kv_cache = reset_kv_cache(knowledge_base_kv_cache, knowledge_base_input_length)
 
 if __name__ == "__main__":
     main()
