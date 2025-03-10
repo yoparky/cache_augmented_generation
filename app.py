@@ -110,12 +110,45 @@ def generate(model, tokenizer, user_prompt: str, knowledge_base_kv_cache: Dynami
     return generated_text
 
 
-# TODO: make a chat loop that does the following:
-# 0. out of the loop, produce_kv_cache() once using the original knowledge
-# START LOOP
-# 1. Ask for user prompt
-# 2. generate using the pre-populated kv cache
-# 3. reset_kv_cache() to clean the populated cache to original state
-# 4. End of loop if user prompts "exit"
+def main():
+    # TODO: make a chat loop that does the following:
+    # 0. out of the loop, produce_kv_cache() once using the original knowledge
+    # START LOOP
+    # 1. Ask for user prompt
+    # 2. generate using the pre-populated kv cache
+    # 3. reset_kv_cache() to clean the populated cache to original state
+    # 4. End of loop if user prompts "exit"
 
+    # Fill out prompt
 
+    # Load model and tokenizer
+    model, tokenizer = load_model()
+    
+    # Load knowledge base
+    knowledge_text = open_knowledge_base("./knowledge_base_raw/my_knowledge_base.txt")
+    
+    # Combine with prompt template
+    knowledge_prompt = combine_knowledge_base_and_prompt(knowledge_text)
+    
+    # Produce initial KV cache
+    print("Processing knowledge base...")
+    knowledge_cache, knowledge_length = produce_kv_cache(model, tokenizer, knowledge_prompt)
+    print("Knowledge base processed and cached.")
+    
+    # Chat loop
+    print("\nChat started. Type 'exit' to end the conversation.")
+    while True:
+        user_input = input("\nYou: ")
+        if user_input.lower() == "exit":
+            break
+        
+        # Generate response with knowledge cache
+        print("\nAssistant: ", end="")
+        response = generate(model, tokenizer, user_input, knowledge_cache)
+        print(response)
+        
+        # Reset cache for next question
+        knowledge_cache = reset_kv_cache(knowledge_cache, knowledge_length)
+
+if __name__ == "__main__":
+    main()
