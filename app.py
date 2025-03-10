@@ -1,6 +1,6 @@
 import torch
 from transformers.cache_utils import DynamicCache
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer
 from typing import Tuple, Optional
 
 def load_model(model_name: str = "my-7b-model", token: Optional[str] = None) -> Tuple[AutoModelForCausalLM, AutoTokenizer]:
@@ -21,8 +21,14 @@ def load_model(model_name: str = "my-7b-model", token: Optional[str] = None) -> 
         model.to(device)
         print(f"Model loaded on {device}")
         return model, tokenizer
-    except Exception as e:
+    except ValueError as e:
+        raise ValueError(f"Invalid model name or configuration: {str(e)}")
+    except RuntimeError as e:
+        if "out of memory" in str(e):
+            raise RuntimeError("Not enough GPU memory to load the model")
         raise RuntimeError(f"Failed to load model: {str(e)}")
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error loading model: {str(e)}")
 
 def open_knowledge_base(path_to_file: str):
     # open the knowledge base
@@ -72,8 +78,8 @@ def reset_kv_cache(kv_cache: DynamicCache, input_length: int) -> None:
     kv_cache.crop(end=input_length)
 
 def generate(
-    model: AutoModelForCausalLM,
-    tokenizer: AutoTokenizer,
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizer,
     user_prompt: str,
     knowledge_base_kv_cache: DynamicCache,
     max_new_tokens: int = 300,
@@ -101,7 +107,8 @@ def generate(
                 next_token_logits = outputs.logits[:, -1, :] / temperature
                 next_token = next_token_logits.argmax(dim=-1).unsqueeze(-1)
                 
-                knowledge_base_kv_cache = outputs.past_key_values
+                # Update the cache in-place
+                knowledge_base_kv_cache.update(outputs.past_key_values)
                 output_ids = torch.cat([output_ids, next_token], dim=1)
                 next_token_input = next_token
                 
