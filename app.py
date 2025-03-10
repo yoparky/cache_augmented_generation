@@ -1,3 +1,4 @@
+import torch
 from transformers.cache_utils import DynamicCache
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -11,7 +12,7 @@ def load_model():
         trust_remote_code=True # IF NEEDED
     )
 
-    AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         model_name,
         device_map="auto",
         token="HF-TOKEN-IF-NEEDED",
@@ -20,6 +21,7 @@ def load_model():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
     print(f"Model loaded on {device}")
+    return model, tokenizer
 
 def open_knowledge_base(path_to_file: str):
     # open the knowledge base
@@ -36,7 +38,7 @@ def combine_knowledge_base_and_prompt(knowledge_base: str) -> str:
     return f"{prompt}\n\n{knowledge_base}".strip()
 
 
-def produce_kv_cache(model, tokenizer, combined_prompt) -> DynamicCache, int:
+def produce_kv_cache(model, tokenizer, combined_prompt) -> tuple[DynamicCache, int]:
     # Preprocess and produce a kv cache with knowledge
     # consider populating a prompt with the knowledge in a nice context prompt
     # and then passing it through the attention layer.
@@ -62,17 +64,50 @@ def produce_kv_cache(model, tokenizer, combined_prompt) -> DynamicCache, int:
     # A seperate model call is made to produce the cache
     # An in-scope cache is initialized, passed to the model call, and returned as output
 
-def reset_kv_cache(kv_cache: DynmaicCache, input_length: int):
+def reset_kv_cache(kv_cache: DynamicCache, input_length: int):
     # Reset the kv cache leaving the processed part intact
     # use DynamicCache.crop(max_length)
     kv_cache.crop(input_length)
 
-def generate():
-    # customized decoder model call using the generated DynamicCache passed in as
-    # the past_key_values argument
-
-    pass
-
+def generate(model, tokenizer, user_prompt: str, cache: DynamicCache, max_new_tokens: int = 300) -> str:
+    # Tokenize the user prompt
+    input_ids = tokenizer(user_prompt, return_tensors="pt").to(model.device).input_ids
+    original_input_length = input_ids.shape[1]
+    
+    # Track generated tokens
+    output_ids = input_ids.clone()
+    next_token_input = input_ids
+    
+    # Manual generation loop
+    with torch.no_grad():
+        for _ in range(max_new_tokens):
+            # Process the next token(s)
+            outputs = model(
+                input_ids=next_token_input,
+                past_key_values=cache,
+                use_cache=True
+            )
+            
+            # Get next token prediction (greedy decoding)
+            next_token_logits = outputs.logits[:, -1, :]
+            next_token = next_token_logits.argmax(dim=-1).unsqueeze(-1)
+            
+            # Update cache for next iteration
+            cache = outputs.past_key_values
+            
+            # Append new token to output
+            output_ids = torch.cat([output_ids, next_token], dim=1)
+            
+            # For next iteration, only process the new token
+            next_token_input = next_token
+            
+            # Check for EOS token
+            if next_token.item() in tokenizer.eos_token_id:
+                break
+    
+    # Extract only the generated part (excluding the input)
+    generated_text = tokenizer.decode(output_ids[0, original_input_length:], skip_special_tokens=True)
+    return generated_text
 
 
 # TODO: make a chat loop that does the following:
