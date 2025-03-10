@@ -31,15 +31,38 @@ def combine_knowledge_base_and_prompt(knowledge_base: str):
     # combine the knowledge base and the prompt
     # return a string of the combined prompt
     prompt = """
+
     """
-    return f"{prompt}\n\n{knowledge_base}"
+    return f"{prompt}\n\n{knowledge_base}".strip()
 
 
-def produce_kv_cache() -> DynamicCache:
+def produce_kv_cache(model, tokenizer, combined_prompt) -> DynamicCache, int:
     # Preprocess and produce a kv cache with knowledge
     # consider populating a prompt with the knowledge in a nice context prompt
     # and then passing it through the attention layer.
+    knowledge_base_kv_cache = DynamicCache()
+    # generate the input_ids
+    inputs = tokenizer(combined_prompt, return_tensors="pt").to(model.device)
+    # since kv cache is 1:1 input-bound, we store the number of input ids
+    input_length = inputs.input_ids.shape[1]
+
+    # populate the knowledge base kv cache
+    # one-pass to populate the cache
+    with torch.no_grad():
+        outputs = model(
+            input_ids=inputs.input_ids,
+            attention_mask=inputs.attention_mask,
+            past_key_values=knowledge_base_kv_cache,
+            use_cache=True
+        )
     
+    # Return populated cache and the original sequence length
+    return outputs.past_key_values, input_length
+
+
+
+
+
 
     # A seperate model call is made to produce the cache
     # An in-scope cache is initialized, passed to the model call, and returned as output
