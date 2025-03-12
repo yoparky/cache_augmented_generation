@@ -1,2 +1,5 @@
 torch
 transformers
+numpy
+faiss-cpu
+sentence-transformers
