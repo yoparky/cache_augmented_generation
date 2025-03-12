@@ -2,7 +2,6 @@ import torch
 from transformers.cache_utils import DynamicCache
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer, BitsAndBytesConfig
 from typing import Tuple, Optional
-import copy
 import datetime  # Added for timestamp functionality
 
 def load_model(model_path: str, token: Optional[str] = None) -> Tuple[AutoModelForCausalLM, AutoTokenizer]:
@@ -120,7 +119,6 @@ def generate(
                 next_token_logits = outputs.logits[:, -1, :] / temperature
                 next_token = next_token_logits.argmax(dim=-1).unsqueeze(-1)
                 
-                # Update the cache in-place
                 knowledge_base_kv_cache = outputs.past_key_values
                 output_ids = torch.cat([output_ids, next_token], dim=1)
                 next_token_input = next_token
