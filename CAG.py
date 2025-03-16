@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, DynamicCache, Stat
 from accelerate.test_utils.testing import get_backend
 from huggingface_hub import login
 
-login(token = "???")
+login(token = "hf_???")
 
 # Init StaticCache with big enough max-length (1024 tokens for the below example) 
 # prompt_cache = StaticCache(config=model.config, max_batch_size=1, max_cache_len=1024, device="cuda", dtype=torch.bfloat16)
@@ -111,6 +111,7 @@ class CAG:
                 print(f"Error decoding prompt: {e}")
                 responses.append(None)
         return responses
+    
 
 def main():
     """Example usage of the CAG class."""
@@ -224,7 +225,7 @@ def main():
     winter comes.” He pulled up his hood and hunched over his garron, silent and sullen.
     “If Gared said it was the cold . . . ” Will began.
     """
-    
+
     try:
         # Use context manager for automatic cleanup
         with CAG(model_id, initial_prompt, max_new_tokens=100) as cag:
@@ -235,8 +236,10 @@ def main():
             
             responses = cag.cag_decode(prompts)
             
-            for response in responses:
-                print(response)
+            for prompt, response in zip(prompts, responses):
+                print(f"Q: {prompt}")
+                print(f"A: {response}")
+                print("-" * 50)
     except Exception as e:
         print(f"Error during execution: {e}")
     
